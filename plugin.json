@@ -1,0 +1,25 @@
+{
+  "slug": "MathMageUnits",
+  "name": "MathMageUnits",
+  "version": "2.0.0",
+  "license": "proprietary",
+  "brand": "MathMageUnits",
+  "author": "Damon Palovaara",
+  "authorEmail": "dpalovaa@nmu.edu",
+  "authorUrl": "",
+  "pluginUrl": "",
+  "manualUrl": "",
+  "sourceUrl": "",
+  "donateUrl": "",
+  "changelogUrl": "",
+  "modules": [
+    {
+      "slug": "Fractal-FM",
+      "name": "Fractal-FM",
+      "description": "FM algorithm that creates fractal waves",
+      "tags": [
+        "oscillator"
+      ]
+    }
+  ]
+}
