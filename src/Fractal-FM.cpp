@@ -2,10 +2,10 @@
 const float TWO_PI = 2.f * M_PI;
 
 struct Fractal_FM : Module {
-	float x1[16] = {};
-	float x2[16] = {};
-	float x3[16] = {};
-	float x4[16] = {};
+	float phase1[16] = {};
+	float phase2[16] = {};
+	float phase3[16] = {};
+	float phase4[16] = {};
 	int num_samples = 1;
 	enum ParamId {
 		PITCH_PARAM,
@@ -35,7 +35,7 @@ struct Fractal_FM : Module {
 		configParam(PITCH_PARAM, 0.f, 1.f, 0.f, "");
 		configParam(MULTIPLIER_PARAM, 0.f, 10.f, 1.f, "");
 		configParam(DEPTH_PARAM, 0.f, 3.f, 0.f, "");
-		configParam(DELAY_PARAM, 0.f, 2.f * M_PI, 0.f, "");
+		configParam(DELAY_PARAM, 0.f, 1.f, 0.f, "");
 		configParam(NOTE_PARAM, 0.f, 1.f, 0.f, "");
 		configInput(MULTIPLIER_INPUT, "ratio between wave features");
 		configInput(DEPTH_INPUT, "amount of fm");
@@ -65,26 +65,36 @@ struct Fractal_FM : Module {
 					a *= (a_input > 0.f) ? a_input / 10.f : 0.f;
 				}				
 				
+				float t = params[DELAY_PARAM].getValue();
+				t += inputs[DELAY_INPUT].getPolyVoltage(c);
+				
 				float op1Freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
 				float op2Freq = m * op1Freq;
 				float op3Freq = m * op2Freq;
 				float op4Freq = m * op3Freq;
-				float delta_time = args.sampleTime / (float) num_samples;
-				x1[c] += op1Freq * delta_time;
-				x2[c] += op2Freq * delta_time;
-				x3[c] += op3Freq * delta_time;
-				x4[c] += op4Freq * delta_time;
-				if (x1[c] >= 1.f) x1[c] -= 1.f;
-				if (x2[c] >= 1.f) x2[c] -= 1.f;
-				if (x3[c] >= 1.f) x3[c] -= 1.f;
-				if (x4[c] >= 1.f) x4[c] -= 1.f;
 				
-				float t = params[DELAY_PARAM].getValue();
-				t += inputs[DELAY_INPUT].getPolyVoltage(c);
-				float y1 = std::sin(TWO_PI * x4[c]);
-				float y2 = std::sin(TWO_PI * x3[c] + a * y1);
-				float y3 = std::sin(TWO_PI * x2[c] + a * y2);
-				float y4 = std::sin(TWO_PI * x1[c] + a * y3);
+				float delta_time = args.sampleTime / (float) num_samples;
+								
+				phase1[c] += op1Freq * delta_time;
+				phase2[c] += op2Freq * delta_time;
+				phase3[c] += op3Freq * delta_time;
+				phase4[c] += op4Freq * delta_time;
+				if (phase1[c] >= 1.f) phase1[c] -= 1.f;
+				if (phase2[c] >= 1.f) phase2[c] -= 1.f;
+				if (phase3[c] >= 1.f) phase3[c] -= 1.f;
+				if (phase4[c] >= 1.f) phase4[c] -= 1.f;
+
+				float m_2 = m * m;
+				float m_3 = m_2 * m;
+				float x1 = phase1[c];
+				float x2 = phase2[c] - (t / m);
+				float x3 = phase3[c] - (2.f * t / m_2);
+				float x4 = phase4[c] - (3.f * t / m_3);
+				
+				float y1 = std::sin(TWO_PI * x4);
+				float y2 = std::sin(TWO_PI * x3 + a * y1);
+				float y3 = std::sin(TWO_PI * x2 + a * y2);
+				float y4 = std::sin(TWO_PI * x1 + a * y3);
 
 				output += y4;				
 			}
