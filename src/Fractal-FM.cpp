@@ -1,12 +1,11 @@
 #include "plugin.hpp"
-const double TWO_PI = 2.0 * 3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679;
+const float TWO_PI = 2.f * M_PI;
 
 struct Fractal_FM : Module {
-	double phase1[16] = {};
-	double phase2[16] = {};
-	double phase3[16] = {};
-	double phase4[16] = {};
-	double sample_time = 0.0;
+	float x1[16] = {};
+	float x2[16] = {};
+	float x3[16] = {};
+	float x4[16] = {};
 	int num_samples = 1;
 	enum ParamId {
 		PITCH_PARAM,
@@ -49,70 +48,51 @@ struct Fractal_FM : Module {
 		int channels = std::max(1, inputs[NOTE_INPUT].getChannels());
 
 		for (int c = 0; c < channels; c++) {
-			double output = 0.0;
-			for (int s = 0; s < num_samples; s++) { 
-				double pitch = (double) params[PITCH_PARAM].getValue();
-				pitch += (double) inputs[NOTE_INPUT].getPolyVoltage(c);
-
-				double m = (double) params[MULTIPLIER_PARAM].getValue();
+			float output = 0.0;
+			for (int s = 0; s < num_samples; s++) {
+				float pitch = params[PITCH_PARAM].getValue();
+				pitch += inputs[NOTE_INPUT].getPolyVoltage(c);
+				
+				float m = params[MULTIPLIER_PARAM].getValue();
 				if (inputs[MULTIPLIER_INPUT].isConnected()) {
-					double m_input = (double) inputs[MULTIPLIER_INPUT].getPolyVoltage(c);
-					double m_m = (m_input > 0.0) ? m_input / 10.0 : 0.0;
-					m *= m_m;
-				}
-				double m_2 = m * m;
-				double m_3 = m_2 * m;
-				double m_0_freq = (double) dsp::FREQ_C4 * std::pow(2.0, pitch);
-				double m_1_freq = m * m_0_freq;
-				double m_2_freq = m * m_1_freq;
-				double m_3_freq = m * m_2_freq;
-				double delta_time = sample_time / (double) num_samples;
+					float m_input = inputs[MULTIPLIER_INPUT].getPolyVoltage(c);
+					m *= (m_input > 0.f) ? m_input / 10.f : 0.f;
+				}				
 				
-				phase1[c] += m_0_freq * delta_time;
-				phase2[c] += m_1_freq * delta_time;
-				phase3[c] += m_2_freq * delta_time;
-				phase4[c] += m_3_freq * delta_time;
-					
-				if (phase1[c] >= 1.0) phase1[c] -= 1.0;
-				if (phase2[c] >= 1.0) phase1[c] -= 1.0;
-				if (phase3[c] >= 1.0) phase1[c] -= 1.0;
-				if (phase4[c] >= 1.0) phase1[c] -= 1.0;
-
-				double a = (double) params[DEPTH_PARAM].getValue();
+				float a = params[DEPTH_PARAM].getValue();
 				if (inputs[DEPTH_INPUT].isConnected()) {
-					double a_input = (double) inputs[DEPTH_INPUT].getPolyVoltage(c);
-					double a_m = (a_input > 0.0) ? a_input / 10.0 : 0.0;
-					a *= a_m;
-				}
+					float a_input = inputs[DEPTH_INPUT].getPolyVoltage(c);
+					a *= (a_input > 0.f) ? a_input / 10.f : 0.f;
+				}				
 				
-				double t = (double) params[DELAY_PARAM].getValue();
-				t += (double) inputs[DELAY_INPUT].getPolyVoltage(c);
+				float op1Freq = dsp::FREQ_C4 * std::pow(2.f, pitch);
+				float op2Freq = m * op1Freq;
+				float op3Freq = m * op2Freq;
+				float op4Freq = m * op3Freq;
+				float delta_time = args.sampleTime / (float) num_samples;
+				x1[c] += op1Freq * delta_time;
+				x2[c] += op2Freq * delta_time;
+				x3[c] += op3Freq * delta_time;
+				x4[c] += op4Freq * delta_time;
+				if (x1[c] >= 1.f) x1[c] -= 1.f;
+				if (x2[c] >= 1.f) x2[c] -= 1.f;
+				if (x3[c] >= 1.f) x3[c] -= 1.f;
+				if (x4[c] >= 1.f) x4[c] -= 1.f;
 				
-				double x1 = TWO_PI * phase1[c];
-				double x2 = TWO_PI * (phase2[c] - t) * m;
-				double x3 = TWO_PI * (phase3[c] - 2.0 * t) * m_2;
-				double x4 = TWO_PI * (phase4[c] - 3.0 * t) * m_3;	
+				float t = params[DELAY_PARAM].getValue();
+				t += inputs[DELAY_INPUT].getPolyVoltage(c);
+				float y1 = std::sin(TWO_PI * x4[c]);
+				float y2 = std::sin(TWO_PI * x3[c] + a * y1);
+				float y3 = std::sin(TWO_PI * x2[c] + a * y2);
+				float y4 = std::sin(TWO_PI * x1[c] + a * y3);
 
-				// double y1 = a * std::sin((x4 - 3.0 * t));
-				double y2 = a * std::sin((x3 - 2.0 * t));//y1);
-				double y3 = a * std::sin((x2 - t) + y2);
-				double y4 = std::sin(x1 + y3);
-
-				output += y4;
+				output += y4;				
 			}
-			output *= 5.0 / (double) num_samples;
-			outputs[OUTPUT_OUTPUT].setVoltage((float)output, c);
-			// outputs[OUTPUT_OUTPUT].setVoltage(output, c);
+			output *= 5.f / num_samples;
+			outputs[OUTPUT_OUTPUT].setVoltage(output, c);
 		}
+		
 		outputs[OUTPUT_OUTPUT].setChannels(channels);
-	}
-
-	void onAdd() override {
-		sample_time = 1.0 / APP->engine->getSampleRate();
-	}
-
-	void onSampleRateChange() override {
-		sample_time = 1.0 / APP->engine->getSampleRate();
 	}
 
 	void overSample(int samples) {
