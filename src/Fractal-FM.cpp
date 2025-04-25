@@ -1,5 +1,4 @@
 #include "plugin.hpp"
-
 const double TWO_PI = 2.0 * 3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679;
 
 struct Fractal_FM : Module {
@@ -67,8 +66,8 @@ struct Fractal_FM : Module {
 			phase3[c] += phase_offset;
 			phase4[c] += phase_offset;
 
-			double m_2 = std::pow(m, 2.0);
-			double m_3 = std::pow(m, 3.0);
+			double m_2 = m * m;
+			double m_3 = m_2 * m;
 			double phase2_cycle = 1.0 / m;
 			double phase3_cycle = 1.0 / m_2;
 			double phase4_cycle = 1.0 / m_3;
