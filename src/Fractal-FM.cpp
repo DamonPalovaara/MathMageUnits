@@ -50,7 +50,6 @@ struct Fractal_FM : Module {
 		for (int c = 0; c < channels; c++) {
 			double pitch = (double) params[PITCH_PARAM].getValue();
 			pitch += (double) inputs[NOTE_INPUT].getPolyVoltage(c);
-			double freq = (double) dsp::FREQ_C4 * std::pow(2.0, pitch);
 
 			double m = (double) params[MULTIPLIER_PARAM].getValue();
 			if (inputs[MULTIPLIER_INPUT].isConnected()) {
@@ -58,28 +57,22 @@ struct Fractal_FM : Module {
 				double m_m = (m_input > 0.0) ? m_input / 10.0 : 0.0;
 				m *= m_m;
 			}
-			
-			double phase_offset = freq * sample_time;
-
-			phase1[c] += phase_offset;
-			phase2[c] += phase_offset;
-			phase3[c] += phase_offset;
-			phase4[c] += phase_offset;
-
 			double m_2 = m * m;
 			double m_3 = m_2 * m;
-			double phase2_cycle = 1.0 / m;
-			double phase3_cycle = 1.0 / m_2;
-			double phase4_cycle = 1.0 / m_3;
+			double base_freq = (double) dsp::FREQ_C4 * std::pow(2.0, pitch);
+			double m_1_freq = m * base_freq;
+			double m_2_freq = m * m_1_freq;
+			double m_3_freq = m * m_2_freq;
 			
-			if (phase1[c] >= 1.0) 
-				phase1[c] -= 1.0;
-			if (phase2[c] >= phase2_cycle) 
-				phase2[c] -= phase2_cycle;
-			if (phase3[c] >= phase3_cycle) 
-				phase3[c] -= phase3_cycle;
-			if (phase4[c] >= phase4_cycle) 
-				phase4[c] -= phase4_cycle;
+			phase1[c] += base_freq * sample_time;
+			phase2[c] += m_1_freq * sample_time;
+			phase3[c] += m_2_freq * sample_time;
+			phase4[c] += m_3_freq * sample_time;
+				
+			if (phase1[c] >= 1.0) phase1[c] -= 1.0;
+			if (phase2[c] >= 1.0) phase1[c] -= 1.0;
+			if (phase3[c] >= 1.0) phase1[c] -= 1.0;
+			if (phase4[c] >= 1.0) phase1[c] -= 1.0;
 
 			double a = (double) params[DEPTH_PARAM].getValue();
 			if (inputs[DEPTH_INPUT].isConnected()) {
@@ -92,13 +85,13 @@ struct Fractal_FM : Module {
 			t += (double) inputs[DELAY_INPUT].getPolyVoltage(c);
 			
 			double x1 = TWO_PI * phase1[c];
-			double x2 = TWO_PI * phase2[c];
-			double x3 = TWO_PI * phase3[c];
-			double x4 = TWO_PI * phase4[c];	
+			double x2 = TWO_PI * phase2[c] * m;
+			double x3 = TWO_PI * phase3[c] * m_2;
+			double x4 = TWO_PI * phase4[c] * m_3;	
 
-			double y1 = a * std::sin(m_3 * (x4 - 3.0 * t));
-			double y2 = a * std::sin(m_2 * (x3 - 2.0 * t) + y1);
-			double y3 = a * std::sin(m * (x2 - t) + y2);
+			double y1 = a * std::sin((x4 - 3.0 * t));
+			double y2 = a * std::sin((x3 - 2.0 * t) + y1);
+			double y3 = a * std::sin((x2 - t) + y2);
 			double y4 = std::sin(x1 + y3);
 
 			outputs[OUTPUT_OUTPUT].setVoltage((float)(5.0 * y4), c);		
